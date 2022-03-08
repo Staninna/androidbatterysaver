@@ -4,7 +4,7 @@
 # https://taskernet.com/shares/?user=AS35m8nUfP1HyOvcmEol9f8eAL6n7JvCG1D06Kyn1G4fLdpZRzMLiZkYTjQoFslhBeR3EIi5VQ%3D%3D&id=Project%3ABatterySaver
 
 # Variables
-CONFIG_FILE=".config.sh"
+CONFIG_FILE="config.sh"
 
 # Functions
 
@@ -108,12 +108,9 @@ function setup {
 
 function isPowered {
     # Getting values
-    readarray -t POWERSOURCES < <(dumpsys battery | grep "powered")
-    AC="${POWERSOURCES[0]/* AC powered: /}"
-    USB="${POWERSOURCES[1]/* USB powered: /}"
-    WIRELESS="${POWERSOURCES[2]/* Wireless powered: /}"
+    CHARGING=$(cat /sys/class/power_supply/battery/status)
 
-    if [ $AC = "true" ] || [ $USB = "true" ] || [ $WIRELESS = "true" ]; then
+    if [ $CHARGING == "Charging" ]; then
         echo true
     else
         echo false
@@ -136,6 +133,7 @@ fi
 
 . $CONFIG_FILE
 LATESTACTION="HENK"
+am broadcast -a bash.batterysaver.servicestarted > /dev/null
 
 while true; do
 
