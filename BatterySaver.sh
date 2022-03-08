@@ -141,13 +141,12 @@ while true; do
 
     # Get battery stats
     LEVEL=$(dumpsys battery | grep "level:" | sed "s/level: //" | cut -c 3-)
+    POWERED=$(isPowered)
 
     # Stop charging
     if (( $LEVEL >= $STOP_CHARGING )) && [ ! $LATESTACTION = "Stopped" ]; then
-        POWERED=$(isPowered)
         while [ $POWERED = "true" ]; do
             echo "0" > /sys/class/power_supply/battery/charging_enabled
-            echo "Trying to stop"
             POWERED=$(isPowered)
         done
         echo "Stopped charging"
@@ -156,23 +155,26 @@ while true; do
 
     # Shutdown system
     elif (( $LEVEL <= $SHUTDOWN_AT )) && [ ! $LATESTACTION = "ShutDown" ]; then
-        POWERED=$(isPowered)
         if [ $POWERED = "false" ]; then
             am broadcast -a bash.batterysaver.shutdown > /dev/null
-            sleep 120
+            for i in {1..120}; do
+                sleep 1
+                POWERED=$(isPowered)
+                if [ $POWERED = "true" ]; then
+                    am broadcast -a bash.batterysaver.shutdowncancelled > /dev/null
+                    break
+                fi
+            done
             POWERED=$(isPowered)
             if [ $POWERED = "false" ]; then
                 setprop sys.powerctl shutdown
             fi
-            LATESTACTION="ShutDown"
         fi
 
     # Start charging
     elif (( $LEVEL <= $START_CHARGING )) && [ ! $LATESTACTION = "Started" ]; then
-        POWERED=$(isPowered)
         while [ $POWERED = "false" ]; do
             echo "1" > /sys/class/power_supply/battery/charging_enabled
-            echo "Trying to start"
             POWERED=$(isPowered)
         done
         echo "Started charging"
