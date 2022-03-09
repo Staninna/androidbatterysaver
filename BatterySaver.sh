@@ -1,10 +1,16 @@
-#! /system/xbin/bash
+#!/system/xbin/bash
+
+while [ "$(getprop sys.boot_completed)" != 1 ];
+        do sleep 1;
+done
+
+sleep 60
 
 # Takser notifications not needed but i recommend it
 # https://taskernet.com/shares/?user=AS35m8nUfP1HyOvcmEol9f8eAL6n7JvCG1D06Kyn1G4fLdpZRzMLiZkYTjQoFslhBeR3EIi5VQ%3D%3D&id=Project%3ABatterySaver
 
 # Variables
-CONFIG_FILE="config.sh"
+CONFIG_FILE="/sdcard/.scripts/BatterySaverConfig.conf"
 
 # Functions
 
@@ -134,6 +140,7 @@ fi
 . $CONFIG_FILE
 LATESTACTION="HENK"
 am broadcast -a bash.batterysaver.servicestarted > /dev/null
+su -lp 2000 -c "cmd notification post -S bigtext -t 'BatterySaver.sh' 'Tag' 'Service started'"
 
 while true; do
 
