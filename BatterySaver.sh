@@ -144,7 +144,7 @@ su -lp 2000 -c "cmd notification post -i 'file:///sdcard/.scripts/BatterySaver/B
 while true; do
 
     # Get battery stats
-    LEVEL=$(dumpsys battery | grep "level:" | sed "s/level: //" | cut -c 3-)
+    LEVEL=$(cat /sys/class/power_supply/battery/capacity)
     POWERED=$(isPowered)
 
     # Stop charging
