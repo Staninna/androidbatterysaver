@@ -4,7 +4,7 @@
 # https://taskernet.com/shares/?user=AS35m8nUfP1HyOvcmEol9f8eAL6n7JvCG1D06Kyn1G4fLdpZRzMLiZkYTjQoFslhBeR3EIi5VQ%3D%3D&id=Project%3ABatterySaver
 
 # Variables
-CONFIG_FILE="/sdcard/.scripts/BatterySaver.conf"
+CONFIG_FILE="BatterySaver.conf"
 
 # Functions
 
@@ -20,7 +20,7 @@ function help {
     echo "    Options:                                                              "
     echo "        h|help    Prints this message                                     "
     echo "        s|setup   Starts the setup process                                "
-    echo "        none      Starts the program as normal and the setup if needed    "
+    echo "        none      Starts the program as normal if possible                "
     echo "                                                                          "
     echo "Sidenotes:                                                                "
     echo "    I recommend using this Tasker project for notifications               "
@@ -108,9 +108,7 @@ function setup {
 
 function isPowered {
     # Getting values
-    CHARGING=$(cat /sys/class/power_supply/battery/status)
-
-    if [ $CHARGING == "Charging" ]; then
+    if [ $(cat /sys/class/power_supply/battery/status) == "Charging" ]; then
         echo true
     else
         echo false
@@ -120,26 +118,22 @@ function isPowered {
 
 # Code
 
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    help
-elif [[ "$1" == "-s" || "$1" == "--setup" ]]; then
+if [[ "$1" == "-s" || "$1" == "--setup" ]]; then
     setup
-fi
-
-
-if [ ! -f $CONFIG_FILE ]; then
+elif [[ "$1" == "-h" || "$1" == "--help" ]] || [ ! -f $CONFIG_FILE ]; then
     help
 fi
 
-# Wait till phone is started
+# Wait till phone is booted just in case probably unnecessary
 while [ "$(getprop sys.boot_completed)" != 1 ];
     do sleep 1;
 done
 
 . $CONFIG_FILE
-LATESTACTION=""
+LASTACTION=""
+
+su -lp 2000 -c "cmd notification post -i 'file:///sdcard/.scripts/BatterySaver/BatterySaver.png' -t 'BatterySaver.sh' 'Tag' 'Service Started!'" > /dev/null
 am broadcast -a bash.batterysaver.servicestarted > /dev/null
-su -lp 2000 -c "cmd notification post -i 'file:///sdcard/.scripts/BatterySaver/BatterySaver.png' -t 'BatterySaver.sh' 'Tag' 'Service Started!'"
 
 while true; do
 
@@ -148,15 +142,14 @@ while true; do
     POWERED=$(isPowered)
 
     # Stop charging
-    if (( $LEVEL >= $STOP_CHARGING )) && [ ! $LATESTACTION = "Stopped" ]; then
+    if (( $LEVEL >= $STOP_CHARGING )) && [[ ! "$LASTACTION" = "Stopped" ]]; then
         while [ $POWERED = "true" ]; do
             echo "0" > /sys/class/power_supply/battery/charging_enabled
             POWERED=$(isPowered)
         done
         echo "Stopped charging"
         am broadcast -a bash.batterysaver.stopped > /dev/null
-        LATESTACTION="Stopped"
-
+        LASTACTION="Stopped"
     # Shutdown system
     elif (( $LEVEL <= $SHUTDOWN_AT )); then
         if [ $POWERED = "false" ]; then
@@ -174,16 +167,15 @@ while true; do
                 setprop sys.powerctl shutdown
             fi
         fi
-
     # Start charging
-    elif (( $LEVEL <= $START_CHARGING )) && [ ! $LATESTACTION = "Started" ]; then
+    elif (( $LEVEL <= $START_CHARGING )) && [[ ! "$LASTACTION" = "Started" ]]; then
         while [ $POWERED = "false" ]; do
             echo "1" > /sys/class/power_supply/battery/charging_enabled
             POWERED=$(isPowered)
         done
         echo "Started charging"
         am broadcast -a bash.batterysaver.started > /dev/null
-        LATESTACTION="Started"
+        LASTACTION="Started"
     fi
 
     sleep $LOOP_TIME
